@@ -92,12 +92,12 @@
 <blockquote>
 <p>There is no facility available to create the matching indexes on all partitions automatically. Indexes must be added to each partition with separate commands.<br>— <a href="https://www.postgresql.org/docs/10/ddl-partitioning.html" target="_blank" rel="noopener">5.10. Table Partitioning</a></p>
 </blockquote>
-<p>这一特性的加入可以省去先前的手动建立索引的部分工作。通过这份<a href="https://github.com/postgres/postgres/commit/8b08f7d4820fd7a8ef6152a9dd8c6e3cb01e5f99" target="_blank" rel="noopener">提交</a>，我们知道在 PostgreSQL 中的分区主表的索引关系类型为 <code>RELKIND_PARTITIONED_INDEX</code>，与分区主表一样不建立存储，记录在 pg_class 中。新增的 parentIndexId 字段用于维护索引的继承关系，记录在 pg_inherits 中。当子表附加（Attach）至主表时，首先遍历子表索引并与主表索引进行匹配，比较索引信息 <a href="https://github.com/postgres/postgres/blob/289198c0d93a3d591f379c4134e90275bd426426/src/backend/catalog/index.c#L1823" target="_blank" rel="noopener">CompareIndexInfo</a> 和所属的约束，与主表一致的索引实体会调用 <a href="https://github.com/postgres/postgres/blob/289198c0d93a3d591f379c4134e90275bd426426/src/backend/commands/indexcmds.c#L2525" target="_blank" rel="noopener">IndexSetParentIndex</a> 和 <a href="https://github.com/postgres/postgres/blob/efd9366dcedec8db9fc85e77d071b0c5a6badea2/src/backend/catalog/pg_constraint.c#L769" target="_blank" rel="noopener">ConstraintSetParentConstraint</a> 函数将其附加至父索引中，当子表不存在相关索引时才会根据主表声明的索引为子表建立新的索引实体。<br>分区主表及其声明的索引没有对应的数据文件，在该版本下，它们的表空间属性也会被置为 <code>InvalidOid</code>。但对于指定表空间的分区索引来说，建立或附加子表时，根据主表索引自动创建的索引实体就无法继承相应的表空间属性。因此在 PostgreSQL 11.1 的版本更新中修复了这一<a href="https://github.com/postgres/postgres/commit/dfa6081419829ef60d6bc02691616337eeb7f988" target="_blank" rel="noopener">问题</a>：</p>
-<blockquote>
-<p>Ensure that automatically created child indexes are created in the same tablespace as the parent partitioned index.<br>— <a href="https://www.postgresql.org/docs/11/release-11-1.html" target="_blank" rel="noopener">E.1. Release 11.1</a></p>
-</blockquote>
-<p>新增的 <a href="https://github.com/postgres/postgres/commit/dfa6081419829ef60d6bc02691616337eeb7f988#diff-2b1247515e9aec2cf5fc7b716eb677c7R11093" target="_blank" rel="noopener">ATExecPartedIdxSetTableSpace</a> 函数专门用于设置分区索引的表空间，更新 pg_class 中对应的行而不涉及数据文件的迁移。现在，在分区主表中设置索引的表空间可以应用到各个已附加的分区子表了。不过，在业务系统中如有分区子表指定了不同的表空间，并且又需要分区子表中索引和分区子表存储在同一表空间下的情况，则可能需要实现对分区子表的一些更细粒度的配置和管理逻辑了。</p>
-
+                    <div class="read-more">
+                        <a href="/2019/01/09/hello-world/" class="read-more-link">
+                            ReadMore
+                            <i class="iconfont icon-readmore"></i>
+                        </a>
+                    </div>
                 
             </div>
         </article>
@@ -134,9 +134,7 @@
             
             2019
             &nbsp;<i class="iconfont icon-heart"></i>&nbsp;
-            
-                <a href="/about/">Boyce Li</a>
-            
+            <a target="_blank" href="https://github.com/iJinxin">Boyce Li</a>
         </p>
         <p class="theme-info">
             Powered by <a target="_blank" href="https://hexo.io">Hexo</a>  |  Theme -
